@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Change password</title>
+</head>
+<body>
+	<h1>Change password</h1>
+	<hr/>
+	<form method="post">
+	<fieldset>
+		<legend>Change password</legend>
+		<table>
+			<tr>
+				<td><label>ID</label></td>
+				<td><input type="varchar(100)"  value="admin" disabled/></td>
+			</tr>
+			<tr>
+				<td><label>CURRENT PASSWORD</label></td>
+				<td><input type="varchar(200)" name="cur_pwd" autocomplete="off"/></td>
+			</tr>
+			<tr>
+				<td><label>NEW PASSWORD</label></td>
+				<td><input type="varchar(200)" name="new_pwd" autocomplete="off"/></td>
+			</tr>
+			<tr>
+				<td><label>NEW PASSWORD_REPEAT</label></td>
+				<td><input type="varchar(200)" name="new_pwd2" autocomplete="off"/></td>
+			</tr>
+		</table>
+		<input type="submit" />
+	</fieldset>
+	</form>
+</body>
+</html>
