@@ -85,38 +85,6 @@ app.post('/sendKlay',function(request,response){
 });
 
 
-
-
-
-
-
-
-
-/*
-
-
-  db.run('select * from account where pwd=?',body.cur_pwd,function(error,results){
-
-		if(results.length==0){	//wrong pwd
-			response.redirect('/change_pwd');
-		}
-		else{			//correct_pwd
-			if(body.new_pwd===body.new_pwd2){		//same pwd input
-				db.run('update account set pwd=?',body.new_pwd,function(error,result){
-					response.redirect('/');
-				});
-			}
-			else{
-				response.redirect('/change_pwd');
-			}
-		}
-	});
-});
-
-
-
-*/
-
 async function testFunction(receiver) {
     // Read keystore json file
 
