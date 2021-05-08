@@ -1,11 +1,15 @@
 
 //caver.rpc.klay.getBlockByHash blockHash를 사용해 가장 최근의 블록 번호를 반환합니다.
-
+const request = require("request");
 const fs = require('fs')
 var ejs=require('ejs');
 const Caver = require('caver-js')
 const qrCode = require('qrcode');
 const firebase  = require("firebase");
+var crypto = require('crypto');
+const axios = require("axios");
+const cheerio = require("cheerio");
+
 //const caver = new Caver('https://api.baobab.klaytn.net:8651')
 
 const accessKeyId = "KASK3K7EXXGVKRUKEMJ1XKYT";
@@ -201,7 +205,7 @@ async function testFunction(receiver) {
     console.log(receipt)
     return receipt
 }
-
+/*
 app.get('/verification',function(request,response){
   data = 'testdata'
   if (data != ''){
@@ -214,22 +218,11 @@ app.get('/verification',function(request,response){
 }else{
     response.render('home', { data:'' });
 }
+*/
 
-id2 = 'test'
-app.get('/verification/:id2',(request,response) => {
-  data = request.params.id2
-  console.log(request.params);
-  if (data != ''){
-      latest = data
-    qrCode.toDataURL(latest, {
-        errorCorrectionLevel:'H'
-    }, (err, url) => {
-        response.render('home', { data:url })
-    });
-}else{
-    response.render('home', { data:'' });
- }
-});
+
+
+
 
 
 
@@ -239,46 +232,164 @@ app.get('/verification/:id2',(request,response) => {
 		response.send(data);
 	});
   */
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+
+//QRCODE-Verification
+
+/*
+commentsRef.on('child_changed', (data) => {
+  var temp_data = data.val()
+  if(data.val().verification.trigger == true){
+    temp_data.verification.trigger = false
+    console.log(temp_data.partitions['bohyun'])
+    for(iter_data in data.val().partitions){
+      temp_data.partitions[iter_data].verification = crypto.createHash('sha512').update(temp_data.partitions[iter_data].UID +  new Date().getTime() + data.key).digest('base64')
+      //console.log(temp_data.status)
+      //console.log(temp_data.menu_price)
+
+      //firebase.database().ref('Chat/'+data.key + '/partitions/' +temp_data ).set({
+      //  'verification': 'test',
+      //});
+
+    }
+  }
+  console.log(temp_data.verification)
+  firebase.database().ref('Chat/'+data.key).set(temp_data);
+  //console.log(data.key, data.val().verification, data.val().author);
 });
 
 
-app.post('/verification',function(request,response){
-	//declare var
-	var body=request.body;//user input
-  //testFunction()
-  response.send(testFunction(String(body.receiver)));
+
+app.get('/verification/:id2',(request,response) => {
+  data = request.params.id2
+  console.log(request.params);
+  if (data != ''){
+      latest = data
+      qrCode.toDataURL(latest, {
+          errorCorrectionLevel:'H'
+      }, (err, url) => {
+        response.render('home', { data:url })
+      });
+}else{
+    response.render('home', { data:'' });
+ }
 });
 
+
+
+
+*/
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
 var commentsRef = firebase.database().ref('Chat/');
 commentsRef.on('child_added', (data) => {
   console.log(data.key, data.val().start, data.val().author);
 });
 
 commentsRef.on('child_changed', (data) => {
-  if(data.val().verification == true){
-    //console.log(data.val().partitions)
-    //console.log(data.val().partitions.length+'////'+data.val().partitions.bohyun.id)
-    for(temp_data in data.val().partitions){
-      console.log(temp_data)
+  var temp_data = data.val()
+  var verification_status = true
+  if(data.val().verification.trigger == true){
+    temp_data.verification.trigger = false
+    console.log(temp_data.partitions['bohyun'])
+    for(iter_data in data.val().partitions){
+      if(temp_data.partitions[iter_data].verification_status == false){
+        verification_status = false
+      }
+
       //console.log(temp_data.status)
       //console.log(temp_data.menu_price)
-      /*
-      firebase.database().ref('Chat/'+data.key + '/partitions/' +temp_data ).set({
-        'verification': 'test',
-      });
-      */
+
+      //firebase.database().ref('Chat/'+data.key + '/partitions/' +temp_data ).set({
+      //  'verification': 'test',
+      //});
+
     }
+    if(verification_status == true){
+      temp_data.verification.status = true
+      sendKlay(temp_data.verification.room_manager_wallet,temp_data.verification.price)
+    }
+    console.log(temp_data.verification)
+    firebase.database().ref('Chat/'+data.key).set(temp_data);
   }
-  var temp_data = data.val()
-  temp_data.verification = false
-  console.log(temp_data.verification)
-  firebase.database().ref('Chat/'+data.key).set(temp_data);
   //console.log(data.key, data.val().verification, data.val().author);
 });
+
+
 
 commentsRef.on('child_removed', (data) => {
   console.log(data.key);
 });
+
+var klay_value_refs = firebase.database().ref('klay_value/');
+klay_value_refs.on('child_changed', (data) => {
+  if(data.val() == true){
+    var klayValue = getKlayValue()
+    console.log(data)
+    firebase.database().ref('klay_value/').set({
+      value: klayValue,
+      trigger: false
+    });
+  }
+})
+
+async function getKlayValue(){
+    var my_Data;
+    getJson(req.params.id, function(data) {
+      res.json(data);
+    });
+
+    my_Data = await request("https://api.coinone.co.kr/ticker?currency=klay", function (err, res, body) {
+       return JSON.parse(String(body))
+    });
+    console.log(my_Data)
+
+
+  return new my_Data.first
+}
+//
+
+
+async function sendKlay(receiver,price) {
+    // Read keystore json file
+
+    //console.log(keyring0)
+
+    //const keyring1 = caver.wallet.keyring.decrypt(keystore1, '9051parkyu@')
+    //console.log(keyring1)
+
+    // Add to caver.wallet
+    caver.wallet.add(keyring0)
+    //caver.wallet.add(keyring1)
+
+    // Create value transfer transaction
+    const vt = new caver.transaction.valueTransfer({
+        from: keyring0.address,
+        to: receiver,
+        //to: '0xb78dEF84c88Cd50DCaff3D520dA2B5255044Fe09', //cypass
+        //to: '0x9a6e2a9dce1e3c8a8c5ec62a4cf428a465d1c7e9',
+        value: caver.utils.convertToPeb(price, 'KLAY'),
+        gas: 25000,
+    })
+
+    // Sign to the transaction
+    const signed = await caver.wallet.sign(keyring0.address, vt)
+
+    // Send transaction to the Klaytn blockchain platform (Klaytn)
+    const receipt = await caver.rpc.klay.sendRawTransaction(signed)
+    console.log(receipt)
+    return receipt
+}
+
+
 //testFunction()
 
 
