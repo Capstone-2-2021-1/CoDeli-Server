@@ -1,17 +1,37 @@
 
 //caver.rpc.klay.getBlockByHash blockHash를 사용해 가장 최근의 블록 번호를 반환합니다.
 
-
-
 const fs = require('fs')
 var ejs=require('ejs');
 const Caver = require('caver-js')
-
+const qrCode = require('qrcode');
+const firebase  = require("firebase");
 //const caver = new Caver('https://api.baobab.klaytn.net:8651')
 
 const accessKeyId = "KASK3K7EXXGVKRUKEMJ1XKYT";
 const secretAccessKey = "6SltZ3+YYad7HJYn38zHhoNAsua2s1d4oXk1ksST";
 const chainId = 8217
+
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAzNazd_ktknXEQndsmmtWUP7WbeVSe1S0",
+  authDomain: "codeli.firebaseapp.com",
+  databaseURL: "https://codeli-default-rtdb.firebaseio.com",
+  projectId: "codeli",
+  storageBucket: "codeli.appspot.com",
+  messagingSenderId: "574116505872",
+  appId: "1:574116505872:web:472e495c0b38e39df49d95",
+  measurementId: "G-XC30SPW44K"
+};
+
+
+ firebase.initializeApp(firebaseConfig);
+
+ // Get a reference to the database service
+ var database = firebase.database();
+
+//https://codeli-default-rtdb.firebaseio.com/
+
 
 const option = {
 
@@ -78,7 +98,7 @@ async function getBlock() {
 
 // see caver.klay.getTransaction)
 }
-getBlock()
+//getBlock()
 
 
 
@@ -89,6 +109,8 @@ var express=require('express');
 var bodyParser =require('body-parser');
 var app=express();
 app.use(express.json());
+app.set("view engine", "ejs");
+app.use(express.static('./static'));
 
 var HTTP_PORT = 52273;
 
@@ -103,14 +125,17 @@ app.listen(HTTP_PORT, () => {
 });
 
 app.get('/',async function(request,response){
+
   var string_test = await caver.klay.getBalance('0x697e67f7767558dcc8ffee7999e05807da45002d')
+/*
   const query = {
     kind: [caver.kas.tokenHistory.queryOptions.kind.NFT],
     size: 1,
     range: '1593529200,1599145200',
     caFilter: '0xbbe63781168c9e67e7a8b112425aa84c479f39aa',
 }
-const result = await caver.kas.tokenHistory.getTransferHistoryByAccount('0x697e67f7767558dcc8ffee7999e05807da45002d', query)
+*/
+const result = await caverKAS.kas.tokenHistory.getTransferHistoryByAccount('0x697e67f7767558dcc8ffee7999e05807da45002d')
   //read file
   console.log(result)
 	//read file
@@ -128,17 +153,6 @@ app.post('/',function(request,response){
   db.each(query);
 */
 
-db.get('select * from account where pwd=?',body.pwd,function(error,row){
-    //console.log(row);
-    if(row==null){
-			response.redirect('/');
-		}
-		else{
-			//results.flush();
-			response.redirect('/list');
-		}
-	});
-
 });
 
 
@@ -147,14 +161,6 @@ app.get('/sendKlay',function(request,response){
 	fs.readFile('template/change_pwd.html','utf8',function(error,data){
 		response.send(data);
 	});
-});
-
-app.post('/sendKlay',function(request,response){
-	//declare var
-	var body=request.body;//user input
-  //testFunction()
-  response.send(testFunction(String(body.receiver)));
-
 });
 
 app.post('/sendKlay',function(request,response){
@@ -197,10 +203,42 @@ async function testFunction(receiver) {
 }
 
 app.get('/verification',function(request,response){
+  data = 'testdata'
+  if (data != ''){
+      latest = data
+    qrCode.toDataURL(latest, {
+        errorCorrectionLevel:'H'
+    }, (err, url) => {
+        response.render('home', { data:url })
+    });
+}else{
+    response.render('home', { data:'' });
+}
+
+id2 = 'test'
+app.get('/verification/:id2',(request,response) => {
+  data = request.params.id2
+  console.log(request.params);
+  if (data != ''){
+      latest = data
+    qrCode.toDataURL(latest, {
+        errorCorrectionLevel:'H'
+    }, (err, url) => {
+        response.render('home', { data:url })
+    });
+}else{
+    response.render('home', { data:'' });
+ }
+});
+
+
+
 	//read file
+  /*
 	fs.readFile('template/change_pwd.html','utf8',function(error,data){
 		response.send(data);
 	});
+  */
 });
 
 
@@ -211,4 +249,65 @@ app.post('/verification',function(request,response){
   response.send(testFunction(String(body.receiver)));
 });
 
+var commentsRef = firebase.database().ref('Chat/');
+commentsRef.on('child_added', (data) => {
+  console.log(data.key, data.val().start, data.val().author);
+});
+
+commentsRef.on('child_changed', (data) => {
+  if(data.val().verification == true){
+    //console.log(data.val().partitions)
+    //console.log(data.val().partitions.length+'////'+data.val().partitions.bohyun.id)
+    for(temp_data in data.val().partitions){
+      console.log(temp_data)
+      //console.log(temp_data.status)
+      //console.log(temp_data.menu_price)
+      /*
+      firebase.database().ref('Chat/'+data.key + '/partitions/' +temp_data ).set({
+        'verification': 'test',
+      });
+      */
+    }
+  }
+  var temp_data = data.val()
+  temp_data.verification = false
+  console.log(temp_data.verification)
+  firebase.database().ref('Chat/'+data.key).set(temp_data);
+  //console.log(data.key, data.val().verification, data.val().author);
+});
+
+commentsRef.on('child_removed', (data) => {
+  console.log(data.key);
+});
 //testFunction()
+
+
+
+/*
+
+<!-- The core Firebase JS SDK is always required and must be listed first -->
+<script src="https://www.gstatic.com/firebasejs/8.5.0/firebase-app.js"></script>
+
+<!-- TODO: Add SDKs for Firebase products that you want to use
+     https://firebase.google.com/docs/web/setup#available-libraries -->
+<script src="https://www.gstatic.com/firebasejs/8.5.0/firebase-analytics.js"></script>
+
+<script>
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  var firebaseConfig = {
+    apiKey: "AIzaSyAzNazd_ktknXEQndsmmtWUP7WbeVSe1S0",
+    authDomain: "codeli.firebaseapp.com",
+    databaseURL: "https://codeli-default-rtdb.firebaseio.com",
+    projectId: "codeli",
+    storageBucket: "codeli.appspot.com",
+    messagingSenderId: "574116505872",
+    appId: "1:574116505872:web:472e495c0b38e39df49d95",
+    measurementId: "G-XC30SPW44K"
+  };
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  firebase.analytics();
+</script>
+
+*/

@@ -23,5 +23,11 @@
 		<input type="submit" />
 	</fieldset>
 	</form>
+	<% if (data) {%>
+        <div class="text-center">
+            <h5>QR Code</h5>
+            <img src="<%=data%>" alt="" style="width:100px; height:100px;">
+        </div>
+    <% } %>   
 </body>
 </html>
