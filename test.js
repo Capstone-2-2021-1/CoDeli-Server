@@ -332,29 +332,29 @@ commentsRef.on('child_removed', (data) => {
 var klay_value_refs = firebase.database().ref('klay_value/');
 klay_value_refs.on('child_changed', (data) => {
   if(data.val() == true){
-    var klayValue = getKlayValue()
+    getKlayValue()
     console.log(data)
-    firebase.database().ref('klay_value/').set({
-      value: klayValue,
-      trigger: false
-    });
+
   }
 })
 
 async function getKlayValue(){
     var my_Data;
-    getJson(req.params.id, function(data) {
-      res.json(data);
+
+    await request("https://api.coinone.co.kr/ticker?currency=klay", function (err, res, body) {
+       var klay_data = JSON.parse(body).first;
+       console.log(klay_data)
+       firebase.database().ref('klay_value/').set({
+         'trigger': false,
+         'value': klay_data
+       });
     });
+  }
+    //console.log(my_Data)
 
-    my_Data = await request("https://api.coinone.co.kr/ticker?currency=klay", function (err, res, body) {
-       return JSON.parse(String(body))
-    });
-    console.log(my_Data)
+    //console.log(klay_data)
 
 
-  return new my_Data.first
-}
 //
 
 
