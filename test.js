@@ -60,6 +60,7 @@ const caverKAS = new CaverExtKAS()
 
 caverKAS.initKASAPI(chainId, accessKeyId, secretAccessKey)
 
+
 async function getBlock() {
   const blockNumber = await caver.rpc.klay.getBlockNumber()
   console.log(blockNumber)
@@ -70,6 +71,10 @@ async function getBlock() {
     range: '1593529200,1599145200',
     caFilter: '0xbbe63781168c9e67e7a8b112425aa84c479f39aa',
   }*/
+  const result_json = await caver.rpc.klay.getTransactionByHash('0x838723ab250bb0b76a143815c8c9d7b121bdb0b2ad550434447b2d08088ef67d');
+  console.log(parseInt(result_json.value,16)/1000000000000000000)
+
+  /*
   const result = await caverKAS.kas.tokenHistory.getTransferHistoryByAccount('0xb78dEF84c88Cd50DCaff3D520dA2B5255044Fe09')
   console.log(result)
   var Max_index = 0;
@@ -90,13 +95,14 @@ async function getBlock() {
       console.log(Unix_timestamp(result_getBlockByHash.timestamp));
     }
   }
-    console.log("///////////////////");
-    const result_data = await caver.rpc.klay.getTransactionByHash(result.items[Max_index].transactionHash);
+  */
+    //console.log("///////////////////");
+    //const result_data = await caver.rpc.klay.getTransactionByHash(result.items[Max_index].transactionHash);
     //console.log(result_json)
     //console.log(result_json.blockHash)
-    const result_data_time = await caver.rpc.klay.getBlockByHash(result_data.blockHash)
+    //const result_data_time = await caver.rpc.klay.getBlockByHash(result_data.blockHash)
     console.log("/////////////////////////////////////////////////////")
-    console.log(Unix_timestamp(result_data_time.timestamp))
+    //console.log(Unix_timestamp(result_data_time.timestamp))
 
 // see caver.klay.getTransaction)
 }
@@ -288,19 +294,39 @@ app.get('/verification/:id2',(request,response) => {
 ////////////////////////////////////////////////////////////////////////////////////////////
 var commentsRef = firebase.database().ref('Chat/');
 commentsRef.on('child_added', (data) => {
-  console.log(data.key, data.val().start, data.val().author);
+  verification_first_data = {
+    'trigger' : false
+  }
+
+  var temp_data = data.toJSON()
+  temp_data.verification = verification_first_data
+
+  firebase.database().ref('Chat/'+data.key).set(temp_data)
+  //console.log(temp_data)
+  //console.log(typeof data.val());
 });
 
 commentsRef.on('child_changed', (data) => {
   var temp_data = data.val()
+//  console.log(data.val())
+  console.log(typeof data.val().verification.trigger)
+
+  console.log(data.val())
   var verification_status = true
-  if(data.val().verification.trigger == true){
+
+  if(typeof data.val().verification.trigger != "undefined" && data.val().verification.trigger == true){
     temp_data.verification.trigger = false
-    console.log(temp_data.partitions['bohyun'])
+    console.log(temp_data.partitions['cslim'])
+    var amount_of_klay = 0.0
     for(iter_data in data.val().partitions){
-      if(temp_data.partitions[iter_data].verification_status == false){
+      if(temp_data.partitions[iter_data].sendingStatus != "prepared" || temp_data.partitions[iter_data].verification_status != 'true'){
         verification_status = false
+
       }
+      else{
+        amount_of_klay += getSendingKlayByHash(hash)
+      }
+
       //console.log(temp_data.status)
       //console.log(temp_data.menu_price)
 
@@ -311,7 +337,7 @@ commentsRef.on('child_changed', (data) => {
     if(verification_status == true){
       temp_data.verification.status = true
       console.log('verification success')
-      sendKlay(temp_data.verification.room_manager_wallet,temp_data.verification.price)
+      sendKlay(temp_data.verification.room_manager_wallet,String(amount_of_klay))
     }
     console.log(temp_data.verification)
     firebase.database().ref('Chat/'+data.key).set(temp_data);
@@ -337,7 +363,7 @@ async function getKlayValue(){
     var my_Data;
 
     await request("https://api.coinone.co.kr/ticker?currency=klay", function (err, res, body) {
-       var klay_data = JSON.parse(body).first;
+       var klay_data = JSON.parse(body).last;
        console.log(klay_data)
        firebase.database().ref('klay_value/').set({
          'trigger': false,
@@ -351,7 +377,14 @@ async function getKlayValue(){
 
 
 //
+async function getSendingKlayByHash(hash) {
 
+  const result_json = await caver.rpc.klay.getTransactionByHash(hash);
+  console.log(parseInt(result_json.value,16)/1000000000000000000)
+  console.log("/////////////////////////////////////////////////////")
+  return parseInt(result_json.value,16)/1000000000000000000)
+
+}
 
 async function sendKlay(receiver,price) {
     // Read keystore json file
@@ -383,6 +416,6 @@ async function sendKlay(receiver,price) {
     console.log(receipt)
     return receipt
 }
-sendKlay('0xb78dEF84c88Cd50DCaff3D520dA2B5255044Fe09','0.001')
+//sendKlay('0xb78dEF84c88Cd50DCaff3D520dA2B5255044Fe09','0.001')
 
 //testFunction()
