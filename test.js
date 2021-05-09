@@ -16,7 +16,6 @@ const accessKeyId = "KASK3K7EXXGVKRUKEMJ1XKYT";
 const secretAccessKey = "6SltZ3+YYad7HJYn38zHhoNAsua2s1d4oXk1ksST";
 const chainId = 8217
 
-
 const firebaseConfig = {
   apiKey: "AIzaSyAzNazd_ktknXEQndsmmtWUP7WbeVSe1S0",
   authDomain: "codeli.firebaseapp.com",
@@ -27,7 +26,6 @@ const firebaseConfig = {
   appId: "1:574116505872:web:472e495c0b38e39df49d95",
   measurementId: "G-XC30SPW44K"
 };
-
 
  firebase.initializeApp(firebaseConfig);
 
@@ -158,7 +156,6 @@ app.post('/',function(request,response){
 */
 
 });
-
 
 app.get('/sendKlay',function(request,response){
 	//read file
@@ -304,17 +301,16 @@ commentsRef.on('child_changed', (data) => {
       if(temp_data.partitions[iter_data].verification_status == false){
         verification_status = false
       }
-
       //console.log(temp_data.status)
       //console.log(temp_data.menu_price)
 
       //firebase.database().ref('Chat/'+data.key + '/partitions/' +temp_data ).set({
       //  'verification': 'test',
       //});
-
     }
     if(verification_status == true){
       temp_data.verification.status = true
+      console.log('verification success')
       sendKlay(temp_data.verification.room_manager_wallet,temp_data.verification.price)
     }
     console.log(temp_data.verification)
@@ -334,7 +330,6 @@ klay_value_refs.on('child_changed', (data) => {
   if(data.val() == true){
     getKlayValue()
     console.log(data)
-
   }
 })
 
@@ -388,37 +383,6 @@ async function sendKlay(receiver,price) {
     console.log(receipt)
     return receipt
 }
-
+sendKlay('0xb78dEF84c88Cd50DCaff3D520dA2B5255044Fe09','0.001')
 
 //testFunction()
-
-
-
-/*
-
-<!-- The core Firebase JS SDK is always required and must be listed first -->
-<script src="https://www.gstatic.com/firebasejs/8.5.0/firebase-app.js"></script>
-
-<!-- TODO: Add SDKs for Firebase products that you want to use
-     https://firebase.google.com/docs/web/setup#available-libraries -->
-<script src="https://www.gstatic.com/firebasejs/8.5.0/firebase-analytics.js"></script>
-
-<script>
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  var firebaseConfig = {
-    apiKey: "AIzaSyAzNazd_ktknXEQndsmmtWUP7WbeVSe1S0",
-    authDomain: "codeli.firebaseapp.com",
-    databaseURL: "https://codeli-default-rtdb.firebaseio.com",
-    projectId: "codeli",
-    storageBucket: "codeli.appspot.com",
-    messagingSenderId: "574116505872",
-    appId: "1:574116505872:web:472e495c0b38e39df49d95",
-    measurementId: "G-XC30SPW44K"
-  };
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-  firebase.analytics();
-</script>
-
-*/
