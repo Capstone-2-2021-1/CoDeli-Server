@@ -382,7 +382,7 @@ async function getSendingKlayByHash(hash) {
   const result_json = await caver.rpc.klay.getTransactionByHash(hash);
   console.log(parseInt(result_json.value,16)/1000000000000000000)
   console.log("/////////////////////////////////////////////////////")
-  return parseInt(result_json.value,16)/1000000000000000000)
+  return parseInt(result_json.value,16)/1000000000000000000
 
 }
 
