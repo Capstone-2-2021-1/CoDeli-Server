@@ -316,7 +316,7 @@ commentsRef.on('child_changed', (data) => {
 
   if(typeof data.val().verification.trigger != "undefined" && data.val().verification.trigger == true){
     temp_data.verification.trigger = false
-    console.log(temp_data.partitions['cslim'])
+    //console.log(temp_data.partitions['cslim'])
     var amount_of_klay = 0.0
     for(iter_data in data.val().partitions){
       if(temp_data.partitions[iter_data].sendingStatus != "prepared" || temp_data.partitions[iter_data].verification_status != 'true'){
