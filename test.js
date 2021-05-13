@@ -126,7 +126,7 @@ var HTTP_PORT = 52273;
 const keystore0 = fs.readFileSync('api_key/main/keystore.json', 'utf8')
 // Decrypt keystore
 const keyring0 = caver.wallet.keyring.decrypt(keystore0, '1213Parkyu@')
-
+caver.wallet.add(keyring0)
 // Start server
 app.listen(HTTP_PORT, () => {
     console.log("Server running on port %PORT%".replace("%PORT%",HTTP_PORT))
@@ -306,12 +306,12 @@ commentsRef.on('child_added', (data) => {
   //console.log(typeof data.val());
 });
 
-commentsRef.on('child_changed', (data) => {
+commentsRef.on('child_changed', async (data) => {
   var temp_data = data.val()
 //  console.log(data.val())
-  console.log(typeof data.val().verification.trigger)
+  //console.log(typeof data.val().verification.trigger)
 
-  console.log(data.val())
+  //console.log(data.val())
   var verification_status = true
 
   if(typeof data.val().verification.trigger != "undefined" && data.val().verification.trigger == true){
@@ -319,12 +319,16 @@ commentsRef.on('child_changed', (data) => {
     //console.log(temp_data.partitions['cslim'])
     var amount_of_klay = 0.0
     for(iter_data in data.val().partitions){
-      if(temp_data.partitions[iter_data].sendingStatus != "prepared" || temp_data.partitions[iter_data].verification_status != 'true'){
+      if(temp_data.partitions[iter_data].sendingStatus != "success" || temp_data.partitions[iter_data].verification_status != true){
+        console.log(temp_data.partitions[iter_data].id +' not ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].verification_status)
         verification_status = false
 
       }
       else{
-        amount_of_klay += getSendingKlayByHash(hash)
+        var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
+        amount_of_klay += temp_klay_by_hash
+        console.log(temp_data.partitions[iter_data].id,' sending ',temp_klay_by_hash)
+
       }
 
       //console.log(temp_data.status)
@@ -334,11 +338,13 @@ commentsRef.on('child_changed', (data) => {
       //  'verification': 'test',
       //});
     }
+
     if(verification_status == true){
       temp_data.verification.status = true
-      console.log('verification success')
-      sendKlay(temp_data.verification.room_manager_wallet,String(amount_of_klay))
+      console.log('verification success, amount_of_klay:',amount_of_klay)
+      await sendKlay(temp_data.verification.room_manager_wallet,String(amount_of_klay))
     }
+
     console.log(temp_data.verification)
     firebase.database().ref('Chat/'+data.key).set(temp_data);
   }
@@ -348,14 +354,14 @@ commentsRef.on('child_changed', (data) => {
 
 
 commentsRef.on('child_removed', (data) => {
-  console.log(data.key);
+  console.log('delete data: ',data.key);
 });
 
 var klay_value_refs = firebase.database().ref('klay_value/');
 klay_value_refs.on('child_changed', (data) => {
   if(data.val() == true){
     getKlayValue()
-    console.log(data)
+    //console.log(data)
   }
 })
 
@@ -364,7 +370,7 @@ async function getKlayValue(){
 
     await request("https://api.coinone.co.kr/ticker?currency=klay", function (err, res, body) {
        var klay_data = JSON.parse(body).last;
-       console.log(klay_data)
+       console.log('update klay_value: ',klay_data)
        firebase.database().ref('klay_value/').set({
          'trigger': false,
          'value': klay_data
@@ -395,7 +401,7 @@ async function sendKlay(receiver,price) {
     //console.log(keyring1)
 
     // Add to caver.wallet
-    caver.wallet.add(keyring0)
+
     //caver.wallet.add(keyring1)
 
     // Create value transfer transaction
@@ -414,6 +420,11 @@ async function sendKlay(receiver,price) {
     // Send transaction to the Klaytn blockchain platform (Klaytn)
     const receipt = await caver.rpc.klay.sendRawTransaction(signed)
     console.log(receipt)
+
+    console.log('//////description//////')
+    console.log('to: ', receipt.to)
+    console.log('from: ', receipt.from)
+    console.log('amout of klay', parseInt(receipt.value,16)/1000000000000000000)
     return receipt
 }
 //sendKlay('0xb78dEF84c88Cd50DCaff3D520dA2B5255044Fe09','0.001')
