@@ -7,9 +7,6 @@ const Caver = require('caver-js')
 const qrCode = require('qrcode');
 const firebase  = require("firebase");
 var crypto = require('crypto');
-const axios = require("axios");
-const cheerio = require("cheerio");
-
 //const caver = new Caver('https://api.baobab.klaytn.net:8651')
 
 const accessKeyId = "KASK3K7EXXGVKRUKEMJ1XKYT";
@@ -31,7 +28,7 @@ const firebaseConfig = {
 
  // Get a reference to the database service
  var database = firebase.database();
-
+var db = firebase.firestore();
 //https://codeli-default-rtdb.firebaseio.com/
 
 
@@ -90,7 +87,7 @@ async function getBlock() {
       console.log(result_getBlockByHash.timestamp)
       if(result_getBlockByHash.timestamp > Max_value){
         Max_index = i;
-        Max_value = result_getBlockByHash.timestamp;
+        Max_value = result_getBlockpm install deg2radByHash.timestamp;
       }
       console.log(Unix_timestamp(result_getBlockByHash.timestamp));
     }
@@ -107,8 +104,6 @@ async function getBlock() {
 // see caver.klay.getTransaction)
 }
 //getBlock()
-
-
 
 
 //const caver = new Caver('http://localhost:8651')
@@ -293,6 +288,7 @@ app.get('/verification/:id2',(request,response) => {
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 var commentsRef = firebase.database().ref('Chat/');
+//var timerRef = firebase.database().ref('Chat/');
 commentsRef.on('child_added', (data) => {
   verification_first_data = {
     'trigger' : false
@@ -308,54 +304,101 @@ commentsRef.on('child_added', (data) => {
 
 commentsRef.on('child_changed', async (data) => {
   var temp_data = data.val()
-//  console.log(data.val())
-  //console.log(typeof data.val().verification.trigger)
-
-  //console.log(data.val())
+  const threshold = 0.01
   var verification_status = true
 
   if(typeof data.val().verification.trigger != "undefined" && data.val().verification.trigger == true){
     temp_data.verification.trigger = false
-    //console.log(temp_data.partitions['cslim'])
     var amount_of_klay = 0.0
+    var location_gps = await getLocationGps(data.key)
+    console.log('destination location: ', location_gps)
     for(iter_data in data.val().partitions){
-      if(temp_data.partitions[iter_data].sendingStatus != "success" || temp_data.partitions[iter_data].verification_status != true){
-        console.log(temp_data.partitions[iter_data].id +' not ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].verification_status)
+      if(temp_data.partitions[iter_data].sendingStatus != "success" || temp_data.partitions[iter_data].verification_status != true || temp_data.partitions[iter_data].location_verification_status != true){
+        console.log(temp_data.partitions[iter_data].id +' not ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].verification_status, temp_data.partitions[iter_data].location_verification_status)
         verification_status = false
-
       }
       else{
+        console.log(temp_data.partitions[iter_data].id +' ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].x,temp_data.partitions[iter_data].y)
         var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
         amount_of_klay += temp_klay_by_hash
         console.log(temp_data.partitions[iter_data].id,' sending ',temp_klay_by_hash)
-
-      }
-
-      //console.log(temp_data.status)
-      //console.log(temp_data.menu_price)
-
-      //firebase.database().ref('Chat/'+data.key + '/partitions/' +temp_data ).set({
-      //  'verification': 'test',
-      //});
+        }
     }
 
     if(verification_status == true){
       temp_data.verification.status = true
       console.log('verification success, amount_of_klay:',amount_of_klay)
-      await sendKlay(temp_data.verification.room_manager_wallet,String(amount_of_klay))
+      //await sendKlay(temp_data.verification.room_manager_wallet,String(amount_of_klay))
     }
 
     console.log(temp_data.verification)
     firebase.database().ref('Chat/'+data.key).set(temp_data);
   }
-  //console.log(data.key, data.val().verification, data.val().author);
-});
 
+  var location_gps = await getLocationGps(data.key)
+  console.log('destination location: ', location_gps)
+  for(iter_data in data.val().partitions){
+      var temp_distance = getDistance(temp_data.partitions[iter_data].x, temp_data.partitions[iter_data].y, location_gps.x, location_gps.y)
+      console.log(temp_data.partitions[iter_data].id +' distance from destination: ',temp_distance)
+      if (isNaN(temp_distance)){
+        console.log(temp_data.partitions[iter_data].id +' distance not ready')
+        temp_data.partitions[iter_data].location_verification_status = false
+        continue
+      }
+      if (temp_distance > threshold){
+        console.log(temp_data.partitions[iter_data].id +' distance not ready')
+        temp_data.partitions[iter_data].location_verification_status = false
+      }
+      else{
+          console.log(temp_data.partitions[iter_data].id +' distance ready')
+          temp_data.partitions[iter_data].location_verification_status = true
+    }
+  }
+  firebase.database().ref('Chat/'+data.key).set(temp_data);
+
+  //console.log('data key: ', data.val().partitions['Test'])
+/*
+  if(typeof data.val().verification.firstTrigger != "undefined" && data.val().verification.firstTriggerr == true){
+    var location_gps = getLocationGps(data.key)
+    for(iter_data in data.val().partitions){
+      var temp_distance = getDistance(temp_data.partitions[iter_data].x, temp_data.partitions[iter_data].y, manager_gps.x, manager_gps.y)
+      if (temp_distance < threshold){
+        var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
+        var address = await getSendedAddressByHash(temp_data.partitions[iter_data].tx_hash)
+        await sendKlay(address,String(amount_of_klay))
+        console.log(temp_data.partitions[iter_data].id,' return ',temp_klay_by_hash)
+      }
+    }aN
+
+  }
+  */
+});
 
 
 commentsRef.on('child_removed', (data) => {
   console.log('delete data: ',data.key);
 });
+
+
+/*
+timerRef.on('child_changed', async (data) => {
+  var temp_data = data.val()
+  const threshold = 0.001
+  if(typeof data.val().verification.trigger != "undefined" && data.val().verification.trigger == true){
+    var location_gps = getLocationGps()
+    for(iter_data in data.val().partitions){
+      var temp_distance = getDistance(temp_data.partitions[iter_data].x, temp_data.partitions[iter_data].y, manager_gps.x, manager_gps.y)
+      if (temp_distance < threshold){
+        var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
+        var address = await getSendedAddressByHash(temp_data.partitions[iter_data].tx_hash)
+        await sendKlay(address,String(amount_of_klay))
+        console.log(temp_data.partitions[iter_data].id,' return ',temp_klay_by_hash)
+      }
+    }
+  }
+  //console.log(data.key, data.val().verification, data.val().author);
+});
+*/
 
 var klay_value_refs = firebase.database().ref('klay_value/');
 klay_value_refs.on('child_changed', (data) => {
@@ -386,9 +429,18 @@ async function getKlayValue(){
 async function getSendingKlayByHash(hash) {
 
   const result_json = await caver.rpc.klay.getTransactionByHash(hash);
-  console.log(parseInt(result_json.value,16)/1000000000000000000)
-  console.log("/////////////////////////////////////////////////////")
+  //console.log(parseInt(result_json.value,16)/1000000000000000000)
+  //console.log("/////////////////////////////////////////////////////")
   return parseInt(result_json.value,16)/1000000000000000000
+
+}
+
+async function getSendedAddressByHash(hash) {
+
+  const result_json = await caver.rpc.klay.getTransactionByHash(hash);
+  //console.log(parseInt(result_json.value,16)/1000000000000000000)
+  //console.log("/////////////////////////////////////////////////////")
+  return parseInt(result_json.to,16)/1000000000000000000
 
 }
 
@@ -427,6 +479,42 @@ async function sendKlay(receiver,price) {
     console.log('amout of klay', parseInt(receipt.value,16)/1000000000000000000)
     return receipt
 }
+
+function getDistance(lat1,lng1,lat2,lng2) {//FromLatLonInKm
+  console.log(lat1,lng1,lat2,lng2)
+    function deg2rad(deg) {
+        return deg * (Math.PI/180)
+    }
+
+    var R = 6371; // Radius of the earth in km
+    var dLat = deg2rad(lat2-lat1);  // deg2rad below
+
+    var dLon = deg2rad(lng2-lng1);
+    var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    var d = R * c; // Distance in km
+
+    return d;
+}
+
+async function getLocationGps(room){
+  docRef = db.collection('Rooms').doc(String(room))
+  docData = await docRef.get()
+  docJSON = new Object()
+  docJSON.x = docData.data().x
+  docJSON.y = docData.data().y
+  //returnMessage = JSON.parse(String("{ 'x':" + docData.data().x + "\n 'y':" + docData.data().y + "\n }"))
+  return docJSON
+}
+
+//getLocationGps(0)
+
+
+
+
+
+
+
 //sendKlay('0xb78dEF84c88Cd50DCaff3D520dA2B5255044Fe09','0.001')
 
 //testFunction()
