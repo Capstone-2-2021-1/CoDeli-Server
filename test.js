@@ -308,35 +308,29 @@ commentsRef.on('child_added', (data) => {
 
 commentsRef.on('child_changed', async (data) => {
   var temp_data = data.val()
-//  console.log(data.val())
-  //console.log(typeof data.val().verification.trigger)
-
-  //console.log(data.val())
   var verification_status = true
-
   if(typeof data.val().verification.trigger != "undefined" && data.val().verification.trigger == true){
     temp_data.verification.trigger = false
-    //console.log(temp_data.partitions['cslim'])
     var amount_of_klay = 0.0
     for(iter_data in data.val().partitions){
       if(temp_data.partitions[iter_data].sendingStatus != "success" || temp_data.partitions[iter_data].verification_status != true){
-        console.log(temp_data.partitions[iter_data].id +' not ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].verification_status)
-        verification_status = false
+        //check room manager in place
+        if(receive_place != now_room_manager_place){
+          console.log('room_manager_not_receive_place')
+          verification_status = false
+        }
+        else{
+          console.log(temp_data.partitions[iter_data].id +' not ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].verification_status)
+          verification_status = false
+        }
+
 
       }
       else{
         var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
         amount_of_klay += temp_klay_by_hash
         console.log(temp_data.partitions[iter_data].id,' sending ',temp_klay_by_hash)
-
       }
-
-      //console.log(temp_data.status)
-      //console.log(temp_data.menu_price)
-
-      //firebase.database().ref('Chat/'+data.key + '/partitions/' +temp_data ).set({
-      //  'verification': 'test',
-      //});
     }
 
     if(verification_status == true){
@@ -348,7 +342,6 @@ commentsRef.on('child_changed', async (data) => {
     console.log(temp_data.verification)
     firebase.database().ref('Chat/'+data.key).set(temp_data);
   }
-  //console.log(data.key, data.val().verification, data.val().author);
 });
 
 
@@ -391,7 +384,7 @@ async function getSendingKlayByHash(hash) {
   return parseInt(result_json.value,16)/1000000000000000000
 
 }
-
+sendKlay('0xa068380258d070ed60F53BFC8044c1EFA67C4af8', '5.204460')
 async function sendKlay(receiver,price) {
     // Read keystore json file
 
