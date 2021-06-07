@@ -7,6 +7,8 @@ const Caver = require('caver-js')
 const qrCode = require('qrcode');
 const firebase  = require("firebase");
 var crypto = require('crypto');
+var moment = require('moment');
+
 //const caver = new Caver('https://api.baobab.klaytn.net:8651')
 
 const accessKeyId = "KASK3K7EXXGVKRUKEMJ1XKYT";
@@ -288,51 +290,31 @@ app.get('/verification/:id2',(request,response) => {
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 var commentsRef = firebase.database().ref('Chat/');
-//var timerRef = firebase.database().ref('Chat/');
+
 commentsRef.on('child_added', (data) => {
-  verification_first_data = {
-    'trigger' : false
+  if(typeof data.val().verification == "undefined"){
+    verification_first_data = {
+      'trigger' : false
+    }
+
+    var temp_data = data.toJSON()
+    temp_data.verification = verification_first_data
+
+    firebase.database().ref('Chat/'+data.key).set(temp_data)
   }
 
-  var temp_data = data.toJSON()
-  temp_data.verification = verification_first_data
-
-  firebase.database().ref('Chat/'+data.key).set(temp_data)
   //console.log(temp_data)
   //console.log(typeof data.val());
 });
 
+
+
+timeObject = new Object()
+sendCheckObject = new Object()
 commentsRef.on('child_changed', async (data) => {
   var temp_data = data.val()
-  const threshold = 0.01
-  var verification_status = true
-  if(typeof data.val().verification.trigger != "undefined" && data.val().verification.trigger == true){
-    temp_data.verification.trigger = false
-    var amount_of_klay = 0.0
-    var location_gps = await getLocationGps(data.key)
-    console.log('destination location: ', location_gps)
-    for(iter_data in data.val().partitions){
-      if(temp_data.partitions[iter_data].sendingStatus != "success" || temp_data.partitions[iter_data].verification_status != true || temp_data.partitions[iter_data].location_verification_status != true){
-        console.log(temp_data.partitions[iter_data].id +' not ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].verification_status, temp_data.partitions[iter_data].location_verification_status)
-        verification_status = false
-      }
-      else{
-        console.log(temp_data.partitions[iter_data].id +' ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].x,temp_data.partitions[iter_data].y)
-        var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
-        amount_of_klay += temp_klay_by_hash
-        console.log(temp_data.partitions[iter_data].id,' sending ',temp_klay_by_hash)
-        }
-    }
+  const threshold = 1
 
-    if(verification_status == true){
-      temp_data.verification.status = true
-      console.log('verification success, amount_of_klay:',amount_of_klay)
-      //await sendKlay(temp_data.verification.room_manager_wallet,String(amount_of_klay))
-    }
-
-    console.log(temp_data.verification)
-    firebase.database().ref('Chat/'+data.key).set(temp_data);
-  }
   var location_gps = await getLocationGps(data.key)
   console.log('destination location: ', location_gps)
   for(iter_data in data.val().partitions){
@@ -353,23 +335,44 @@ commentsRef.on('child_changed', async (data) => {
     }
   }
   firebase.database().ref('Chat/'+data.key).set(temp_data);
-
-  //console.log('data key: ', data.val().partitions['Test'])
-/*
-  if(typeof data.val().verification.firstTrigger != "undefined" && data.val().verification.firstTriggerr == true){
-    var location_gps = getLocationGps(data.key)
-    for(iter_data in data.val().partitions){
-      var temp_distance = getDistance(temp_data.partitions[iter_data].x, temp_data.partitions[iter_data].y, manager_gps.x, manager_gps.y)
-      if (temp_distance < threshold){
-        var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
-        var address = await getSendedAddressByHash(temp_data.partitions[iter_data].tx_hash)
-        await sendKlay(address,String(amount_of_klay))
-        console.log(temp_data.partitions[iter_data].id,' return ',temp_klay_by_hash)
-      }
-    }aN
-
+  
+  var verification_status = true
+  if(typeof data.val().appointmentTime != "undefined"){
+    timeObject[data.key] = data.val().appointmentTime
+    console.log('add time in server', timeObject[data.key])
   }
-  */
+  if(typeof data.val().verification.trigger != "undefined" && data.val().verification.trigger == true){
+    temp_data.verification.trigger = false
+    var amount_of_klay = 0.0
+    var location_gps = await getLocationGps(data.key)
+    console.log('destination location: ', location_gps)
+    for(iter_data in data.val().partitions){
+      if(temp_data.partitions[iter_data].sendingStatus != "success" || temp_data.partitions[iter_data].verification_status != true || temp_data.partitions[iter_data].location_verification_status != true){
+        console.log(temp_data.partitions[iter_data].id +' not ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].verification_status, temp_data.partitions[iter_data].location_verification_status)
+        verification_status = false
+      }
+      else{
+        console.log(temp_data.partitions[iter_data].id +' ready',temp_data.partitions[iter_data].sendingStatus,temp_data.partitions[iter_data].x,temp_data.partitions[iter_data].y)
+        var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
+        amount_of_klay += temp_klay_by_hash
+        console.log(temp_data.partitions[iter_data].id,' sending ',temp_klay_by_hash)
+      }
+    }
+
+    if(verification_status == true && sendCheckObject[data.key] != true){
+      temp_data.verification.status = true
+      console.log('verification success, amount_of_klay:',amount_of_klay)
+      await sendKlay(temp_data.verification.room_manager_wallet,String(amount_of_klay))
+      sendCheckObject[data.key] = true
+    }
+
+    console.log(temp_data.verification)
+    firebase.database().ref('Chat/'+data.key).set(temp_data);
+  }
+
+
+
+
 });
 
 
@@ -378,25 +381,8 @@ commentsRef.on('child_removed', (data) => {
 });
 
 
-/*
-timerRef.on('child_changed', async (data) => {
-  var temp_data = data.val()
-  const threshold = 0.001
-  if(typeof data.val().verification.trigger != "undefined" && data.val().verification.trigger == true){
-    var location_gps = getLocationGps()
-    for(iter_data in data.val().partitions){
-      var temp_distance = getDistance(temp_data.partitions[iter_data].x, temp_data.partitions[iter_data].y, manager_gps.x, manager_gps.y)
-      if (temp_distance < threshold){
-        var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
-        var address = await getSendedAddressByHash(temp_data.partitions[iter_data].tx_hash)
-        await sendKlay(address,String(amount_of_klay))
-        console.log(temp_data.partitions[iter_data].id,' return ',temp_klay_by_hash)
-      }
-    }
-  }
-  //console.log(data.key, data.val().verification, data.val().author);
-});
-*/
+
+
 
 var klay_value_refs = firebase.database().ref('klay_value/');
 klay_value_refs.on('child_changed', (data) => {
@@ -504,6 +490,45 @@ async function getLocationGps(room){
   //returnMessage = JSON.parse(String("{ 'x':" + docData.data().x + "\n 'y':" + docData.data().y + "\n }"))
   return docJSON
 }
+
+async function intervalFunc() {
+
+  var now_time = moment() //
+  amount_of_klay = 0
+  var temp_time = moment('06-06 19:26', 'MM-DD HH:mm')
+
+  for (x in timeObject){
+    temp_time = moment(timeObject[x], 'MM-DD HH:mm')
+    //console.log('time duration', moment.duration(now_time.diff(temp_time)).asMinutes()>= 0.0, sendCheckObject[x] != true)
+    if (moment.duration(now_time.diff(temp_time)).asMinutes() >= 0.0 && sendCheckObject[x] != true){
+      console.log('start', timeObject[x]);
+
+      const dbRef = firebase.database().ref('Chat/'+x+'/');
+      data = await dbRef.get()
+      console.log(data.val())
+      if(typeof data.val().verification.room_manager_wallet != "undefined"){
+        sendCheckObject[x] = true
+        for(iter_data in data.val().partitions){
+          if(data.val().partitions[iter_data].sendingStatus == "success" && data.val().partitions[iter_data].location_verification_status == true && data.val().partitions[iter_data].verification_status != true){
+            console.log(data.val().partitions[iter_data].id +' in destination but not meet room manager',data.val().partitions[iter_data].sendingStatus,data.val().partitions[iter_data].verification_status, data.val().partitions[iter_data].location_verification_status)
+          }
+          else{
+            console.log(data.val().partitions[iter_data].id +' ready',data.val().partitions[iter_data].sendingStatus,data.val().partitions[iter_data].x,data.val().partitions[iter_data].y)
+            var temp_klay_by_hash = await getSendingKlayByHash(data.val().partitions[iter_data].tx_hash)
+            amount_of_klay += temp_klay_by_hash
+            console.log(data.val().partitions[iter_data].id,' sending ',temp_klay_by_hash)
+          }
+        }
+          data.val().verification.status = true
+          console.log('time verification success, amount_of_klay:',amount_of_klay)
+          await sendKlay(data.val().verification.room_manager_wallet,String(amount_of_klay))
+      }
+    }
+  }
+
+}
+
+setInterval(intervalFunc, 1000);
 
 //getLocationGps(0)
 
