@@ -2,13 +2,13 @@
 //caver.rpc.klay.getBlockByHash blockHash를 사용해 가장 최근의 블록 번호를 반환합니다.
 const request = require("request");
 const fs = require('fs')
-var ejs=require('ejs');
 const Caver = require('caver-js')
-const qrCode = require('qrcode');
 const firebase  = require("firebase");
 var crypto = require('crypto');
 var moment = require('moment');
-
+var express=require('express');
+var bodyParser =require('body-parser');
+const CaverExtKAS = require('caver-js-ext-kas')
 //const caver = new Caver('https://api.baobab.klaytn.net:8651')
 
 const accessKeyId = "KASK3K7EXXGVKRUKEMJ1XKYT";
@@ -54,7 +54,7 @@ function Unix_timestamp(t){
 }
 const caver = new Caver(new Caver.providers.HttpProvider("https://node-api.klaytnapi.com/v1/klaytn", option));
 
-const CaverExtKAS = require('caver-js-ext-kas')
+
 const caverKAS = new CaverExtKAS()
 
 caverKAS.initKASAPI(chainId, accessKeyId, secretAccessKey)
@@ -109,15 +109,13 @@ async function getBlock() {
 
 
 //const caver = new Caver('http://localhost:8651')
-var express=require('express');
 
-var bodyParser =require('body-parser');
 var app=express();
 app.use(express.json());
 app.set("view engine", "ejs");
 app.use(express.static('./static'));
 
-var HTTP_PORT = 52273;
+var HTTP_PORT = 52274;
 
 //const keystore0 = fs.readFileSync('api_key/babob/1213Parkyu@/keystore.json', 'utf8')
 const keystore0 = fs.readFileSync('api_key/main/keystore.json', 'utf8')
@@ -313,7 +311,7 @@ timeObject = new Object()
 sendCheckObject = new Object()
 commentsRef.on('child_changed', async (data) => {
   var temp_data = data.val()
-  const threshold = 1
+  const threshold = 0.05
 
   var location_gps = await getLocationGps(data.key)
   console.log('destination location: ', location_gps)
@@ -332,10 +330,18 @@ commentsRef.on('child_changed', async (data) => {
       else{
           console.log(temp_data.partitions[iter_data].id +' distance ready')
           temp_data.partitions[iter_data].location_verification_status = true
-    }
+     }
+     if(typeof data.val().partitions[iter_data].sendToManager != "undefined" && typeof data.val().partitions[iter_data].verification_status != "undefined"){
+       if (data.val().partitions[iter_data].verification_status == true && data.val().partitions[iter_data].sendToManager == false){
+         var temp_klay_by_hash = await getSendingKlayByHash(temp_data.partitions[iter_data].tx_hash)
+         console.log('verification success, amount_of_klay:',temp_klay_by_hash)
+         await sendKlay(temp_data.verification.room_manager_wallet,String(temp_klay_by_hash))
+         temp_data.partitions[iter_data].sendToManager = true
+       }
+     }
   }
   firebase.database().ref('Chat/'+data.key).set(temp_data);
-  
+
   var verification_status = true
   if(typeof data.val().appointmentTime != "undefined"){
     timeObject[data.key] = data.val().appointmentTime
@@ -496,7 +502,7 @@ async function intervalFunc() {
   var now_time = moment() //
   amount_of_klay = 0
   var temp_time = moment('06-06 19:26', 'MM-DD HH:mm')
-
+  //console.log(now_time)
   for (x in timeObject){
     temp_time = moment(timeObject[x], 'MM-DD HH:mm')
     //console.log('time duration', moment.duration(now_time.diff(temp_time)).asMinutes()>= 0.0, sendCheckObject[x] != true)
@@ -504,15 +510,18 @@ async function intervalFunc() {
       console.log('start', timeObject[x]);
 
       const dbRef = firebase.database().ref('Chat/'+x+'/');
-      data = await dbRef.get()
-      console.log(data.val())
+      const data = await dbRef.get()
+      const temp_data = data.toJSON()
+      //console.log(data.val())
       if(typeof data.val().verification.room_manager_wallet != "undefined"){
         sendCheckObject[x] = true
         for(iter_data in data.val().partitions){
           if(data.val().partitions[iter_data].sendingStatus == "success" && data.val().partitions[iter_data].location_verification_status == true && data.val().partitions[iter_data].verification_status != true){
             console.log(data.val().partitions[iter_data].id +' in destination but not meet room manager',data.val().partitions[iter_data].sendingStatus,data.val().partitions[iter_data].verification_status, data.val().partitions[iter_data].location_verification_status)
+            temp_data.partitions[iter_data].sendToManager = false
           }
           else{
+            temp_data.partitions[iter_data].sendToManager = true
             console.log(data.val().partitions[iter_data].id +' ready',data.val().partitions[iter_data].sendingStatus,data.val().partitions[iter_data].x,data.val().partitions[iter_data].y)
             var temp_klay_by_hash = await getSendingKlayByHash(data.val().partitions[iter_data].tx_hash)
             amount_of_klay += temp_klay_by_hash
@@ -522,6 +531,7 @@ async function intervalFunc() {
           data.val().verification.status = true
           console.log('time verification success, amount_of_klay:',amount_of_klay)
           await sendKlay(data.val().verification.room_manager_wallet,String(amount_of_klay))
+          firebase.database().ref('Chat/'+x).set(temp_data);
       }
     }
   }
@@ -529,7 +539,16 @@ async function intervalFunc() {
 }
 
 setInterval(intervalFunc, 1000);
-
+/*
+async function testFunc(){
+  const dbRef = firebase.database().ref('Chat/'+'0'+'/');
+  data = await dbRef.get()
+  data.toJSON()
+  data.sendToManager = false
+  console.log(data.sendToManager)
+}
+testFunc()
+*/
 //getLocationGps(0)
 
 
